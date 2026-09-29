@@ -1,10 +1,12 @@
 __pycache__/
 *.pyc
+.DS_Store
 /.venv/
 /.ruff_cache/
 /.idea/
 /.run/
 /Volume/
+/data/
 !/.github/
 /build/
 /dist/

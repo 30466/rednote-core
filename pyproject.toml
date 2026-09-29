@@ -1,7 +1,7 @@
 [project]
-name = "XHS-Downloader"
-version = "2.8"
-description = "小红书（XiaoHongShu、RedNote）链接提取/作品采集工具"
+name = "rednote-core"
+version = "0.1.0"
+description = "小红书作者作品两阶段导出与媒体下载工具"
 authors = [
     { name = "JoeanAmier", email = "yonglelolu@foxmail.com" },
 ]
@@ -17,16 +17,19 @@ dependencies = [
     "fastapi>=0.141.1",
     "fastmcp>=3.4.7",
     "lxml>=6.1.2",
+    "playwright==1.61.0",
     "pyperclip>=1.11.0",
     "pywebview>=6.2.1",
     "pyyaml>=6.0.3",
     "textual>=8.2.8",
     "uvicorn>=0.52.4",
     "websockets>=17.0.1",
+    "xhshow>=0.2.0",
 ]
 
 [project.urls]
-Repository = "https://github.com/JoeanAmier/XHS-Downloader"
+Repository = "https://github.com/30466/rednote-core"
+Upstream = "https://github.com/JoeanAmier/XHS-Downloader"
 
 [tool.uv.pip]
 index-url = "https://mirrors.ustc.edu.cn/pypi/simple"

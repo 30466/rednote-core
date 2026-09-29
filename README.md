@@ -21,6 +21,53 @@
 <p>🔥 <b>小红书（XiaoHongShu、RedNote）链接提取/作品采集工具！</b></p>
 </div>
 <hr>
+
+## rednote-core 两阶段工作流
+
+本仓库是 [JoeanAmier/XHS-Downloader](https://github.com/JoeanAmier/XHS-Downloader) 的 Fork。在保留上游单篇解析、图片/视频/Live Photo 下载、断点续传和下载记录能力的基础上，增加与本地 `bili-core`、`weibo-core` 一致的两阶段入口：
+
+1. `export` 使用项目隔离的 Playwright Chromium 访问作者主页，只读取页面初始状态并拦截 `user_posted` 结构化响应，导出完整 JSON 和便于筛选的 CSV；不会下载媒体。
+2. `detail` 与 `download` 先通过同一个项目隔离 Playwright 浏览器读取作品结构化数据；`download` 再把图片、视频或 Live Photo 地址交给现有下载器。批量筛选与并发调度交给 Agent/Skill，不在 core 中固化一个批量规则。
+
+浏览器 profile 固定保存在被 Git 忽略的 `Volume/playwright-profile/`，不会启动、连接或读取用户日常使用的 Chrome profile。作者作品卡片不通过 DOM 文本解析；Playwright 仅用于登录会话和捕获结构化接口响应。
+
+`rednote-core` 默认让隔离浏览器直连，不继承终端里的 `HTTP_PROXY`、`HTTPS_PROXY` 或 `ALL_PROXY`，因此开着仅提供本机代理的 VPN 客户端时也不会主动走代理。若确实需要让浏览器使用系统/环境代理，可设置 `REDNOTE_DIRECT=0`。注意：如果 VPN 使用的是全局 TUN/系统网络扩展，应用层无法保证绕过它，仍需在 VPN 客户端中为 `xiaohongshu.com` 配置直连规则。
+
+```bash
+# 安装依赖；Playwright 版本与本地 bili-core 使用的 Chromium 缓存兼容
+uv sync
+
+# 首次使用：打开项目隔离的 Chrome for Testing 扫码
+uv run python rednote.py login
+
+# 第一阶段：默认只导出完整摘要清单，不逐篇请求详情
+uv run python rednote.py export '谭思慧'
+uv run python rednote.py export '819540154'
+uv run python rednote.py export 'https://www.xiaohongshu.com/user/profile/作者ID'
+
+# 需要逐篇详情时必须显式启用；遇到验证码或连续失败会自动熔断
+uv run python rednote.py export '819540154' --details
+
+# 可先用少量摘要验证主页链路
+uv run python rednote.py export '作者主页URL' --limit 10 --summary-only
+
+# 第二阶段：解析或下载一篇筛选后的作品
+uv run python rednote.py detail '作品URL'
+uv run python rednote.py download '作品URL' --output downloads
+```
+
+详情页面、登录和验证码都在可见的项目隔离浏览器中处理。检测到登录或验证码页面时，程序会保留窗口并等待人工完成；媒体文件本身仍由下载器从 CDN 下载。
+
+`export` 完成后会输出本次命令的总耗时；该时间包含账号解析、主页清单、逐篇详情和人工登录/验证码等待时间。
+
+当前阶段的验证结果、未复现问题和后续工作记录在 [`TODO.md`](TODO.md)。
+
+第一阶段输出位于 `data/{作者昵称}/{作者ID}.json` 和 `.csv`。清单只保存作品 ID、正文、标签、时间和统计等稳定字段，不保存可能过期的 `xsec_token` 或 CDN 媒体 URL。
+
+昵称搜索只会接受完全一致的结果；若存在多个同名账号，程序会列出候选小红书号并停止，避免误抓，此时改用小红书号即可精确导出。完整主页 URL 仍然受支持。
+
+`login` 不会只凭本地 Cookie 文件判断成功。它会先访问小红书页面，让服务端验证已保存的会话；会话仍有效时直接退出，已过期或被撤销时才显示二维码。扫码后也会再次通过页面登录态确认成功。
+
 <h1>📑 项目功能</h1>
 <details>
 <summary>项目程序与用户脚本功能清单，快速了解项目能力（点击展开）</summary>

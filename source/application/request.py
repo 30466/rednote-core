@@ -24,6 +24,9 @@ class Html:
         self.timeout = manager.timeout
         self.proxy = manager.proxy
         self.impersonate = manager.impersonate
+        self.last_response_status: int | None = None
+        self.last_response_url = ""
+        self.last_error = ""
 
     @retry
     async def request_url(
@@ -53,10 +56,14 @@ class Html:
                     proxy=proxy,
                     **kwargs,
                 )
+            self.last_response_status = response.status_code
+            self.last_response_url = str(response.url)
+            self.last_error = ""
             await sleep_time()
             response.raise_for_status()
             return response.text if content else str(response.url)
         except RequestException as error:
+            self.last_error = repr(error)
             logging(
                 self.print,
                 _("网络异常，{0} 请求失败: {1}").format(url, repr(error)),
@@ -69,12 +76,12 @@ class Html:
         return bytes(url, "utf-8").decode("unicode_escape")
 
     def __request_url_with_cookie(
-            self,
-            url: str,
-            headers: dict,
-            cookie: str,
-            proxy: str | None = None,
-            **kwargs,
+        self,
+        url: str,
+        headers: dict,
+        cookie: str,
+        proxy: str | None = None,
+        **kwargs,
     ):
         return get(
             url,
