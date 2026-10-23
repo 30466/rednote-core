@@ -62,7 +62,7 @@ uv run python rednote.py download '作品URL' --output downloads
 
 当前阶段的验证结果、未复现问题和后续工作记录在 [`TODO.md`](TODO.md)。
 
-第一阶段输出位于 `data/{作者昵称}/{作者ID}.json` 和 `.csv`。清单只保存作品 ID、正文、标签、时间和统计等稳定字段，不保存可能过期的 `xsec_token` 或 CDN 媒体 URL。
+第一阶段输出位于 `data/{作者昵称}/{作者ID}_{保存时间}.json` 和 `.csv`。保存时间为写入文件时的北京时间，格式为 `YYYYMMDD_HHmmss_SSS`（毫秒），同批 JSON/CSV 时间一致；重名时追加序号，每次新增快照并保留历史文件。清单只保存作品 ID、正文、标签、时间和统计等稳定字段，不保存可能过期的 `xsec_token` 或 CDN 媒体 URL。
 
 昵称搜索只会接受完全一致的结果；若存在多个同名账号，程序会列出候选小红书号并停止，避免误抓，此时改用小红书号即可精确导出。完整主页 URL 仍然受支持。
 

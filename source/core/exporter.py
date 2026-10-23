@@ -3,11 +3,39 @@ from __future__ import annotations
 import csv
 import json
 import re
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Callable
 
 from .browser import CreatorBrowserCrawler
+
+BEIJING_TZ = timezone(timedelta(hours=8), name="Asia/Shanghai")
+
+
+def _reserve_snapshot_paths(output_dir: Path, account_id: str, saved_at: datetime):
+    stamp = saved_at.strftime("%Y%m%d_%H%M%S_") + f"{saved_at.microsecond // 1000:03d}"
+    index = 0
+    while True:
+        stem = f"{account_id}_{stamp}" + (f"_{index}" if index else "")
+        json_path = output_dir / f"{stem}.json"
+        csv_path = output_dir / f"{stem}.csv"
+        index += 1
+        try:
+            with json_path.open("x", encoding="utf-8"):
+                pass
+        except FileExistsError:
+            continue
+        try:
+            with csv_path.open("x", encoding="utf-8"):
+                pass
+        except FileExistsError:
+            json_path.unlink()
+            continue
+        except OSError:
+            json_path.unlink()
+            raise
+        return json_path, csv_path
+
 
 SCHEMA_VERSION = 1
 CSV_FIELDS = (
@@ -118,10 +146,11 @@ class CreatorExporter:
         if notes and not profile.get("user_id"):
             profile["user_id"] = notes[0].get("author_id", "")
 
+        saved_at = datetime.now(BEIJING_TZ)
         document = {
             "schema_version": SCHEMA_VERSION,
             "platform": "xiaohongshu",
-            "exported_at": datetime.now().astimezone().isoformat(timespec="seconds"),
+            "exported_at": saved_at.isoformat(timespec="milliseconds"),
             "source_profile_url": (
                 f"https://www.xiaohongshu.com/user/profile/{profile.get('user_id', '')}"
             ),
@@ -155,8 +184,7 @@ class CreatorExporter:
         author_name = _safe_name(profile.get("nickname", ""), author_id)
         output_dir = data_dir / author_name
         output_dir.mkdir(parents=True, exist_ok=True)
-        json_path = output_dir / f"{author_id}.json"
-        csv_path = output_dir / f"{author_id}.csv"
+        json_path, csv_path = _reserve_snapshot_paths(output_dir, author_id, saved_at)
         json_path.write_text(
             json.dumps(document, ensure_ascii=False, indent=2),
             encoding="utf-8",

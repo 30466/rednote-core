@@ -222,6 +222,37 @@ class BrowserParserTests(unittest.TestCase):
 
 
 class ExporterTests(unittest.IsolatedAsyncioTestCase):
+    async def test_repeated_exports_preserve_previous_snapshot(self):
+        with tempfile.TemporaryDirectory() as directory:
+            exporter = CreatorExporter(FakeCrawler())
+            options = {"data_dir": Path(directory), "with_details": False}
+            first, first_csv, _ = await exporter.export("https://example.com", **options)
+            original = first.read_bytes(), first_csv.read_bytes()
+            second, second_csv, document = await exporter.export("https://example.com", **options)
+            self.assertNotEqual(first, second)
+            self.assertEqual((first.read_bytes(), first_csv.read_bytes()), original)
+            self.assertEqual(second.stem, second_csv.stem)
+            from datetime import datetime
+            saved_at = datetime.fromisoformat(document["exported_at"])
+            stamp = saved_at.strftime("%Y%m%d_%H%M%S_%f")[:-3]
+            self.assertIn(stamp, second.stem)
+
+    def test_snapshot_collision_preserves_existing_csv(self):
+        from datetime import datetime
+        from source.core.exporter import BEIJING_TZ, _reserve_snapshot_paths
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            saved_at = datetime(2026, 10, 23, 0, 1, 2, 3000, tzinfo=BEIJING_TZ)
+            existing = root / "123_20261023_000102_003.csv"
+            existing.write_text("old CSV")
+            first, _ = _reserve_snapshot_paths(root, "123", saved_at)
+            first.write_text("old JSON")
+            second, _ = _reserve_snapshot_paths(root, "123", saved_at)
+            self.assertEqual(first.stem, "123_20261023_000102_003_1")
+            self.assertEqual(second.stem, "123_20261023_000102_003_2")
+            self.assertEqual(existing.read_text(), "old CSV")
+            self.assertEqual(first.read_text(), "old JSON")
+
     async def test_summary_export_writes_json_and_csv(self):
         with tempfile.TemporaryDirectory() as directory:
             exporter = CreatorExporter(FakeCrawler())
